@@ -108,7 +108,7 @@ async def register_user(
             "description": "User account activated successfully.",
             "content": {
                 "application/json": {
-                    "example": {"detail": "Movie updated successfully."}
+                    "example": {"detail": "User updated successfully."}
                 }
             },
         },
@@ -234,7 +234,8 @@ async def password_reset_complete(
             select(PasswordResetTokenModel).
             where(PasswordResetTokenModel.user_id == db_user.id)
         )
-        await db.delete(user_token)
+        if user_token is not None:
+            await db.delete(user_token)
         await db.commit()
         raise HTTPException(
             status_code=400,
@@ -312,7 +313,6 @@ async def login(
             "refresh_token": refresh_token,
             "token_type": "bearer",
         }
-
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
@@ -350,6 +350,9 @@ async def refresh(
         )
 
     user_id = token["user_id"]
+
+    if db_token.user_id != token["user_id"]:
+        raise HTTPException(status_code=401, detail="Refresh token not found.")
 
     user = await db.scalar(select(UserModel).where(UserModel.id == user_id))
 
